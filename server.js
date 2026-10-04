@@ -1,6 +1,6 @@
 // Felt practice casino: zero-dependency backend. Run: node server.js
 const http=require('http'),fs=require('fs'),path=require('path'),crypto=require('crypto');
-const PORT=process.env.PORT||3000,AU=process.env.ADMIN_USER||'admin',AP=process.env.ADMIN_PASS||'admin123',DB=path.join(__dirname,'data.json');
+const PORT=process.env.PORT||8080,AU=process.env.ADMIN_USER||'admin',AP=process.env.ADMIN_PASS||'admin123',DB=path.join(__dirname,'data.json');
 let db={users:{},tx:[],plays:[],seq:1,secret:crypto.randomBytes(24).toString('hex')};
 try{db=Object.assign(db,JSON.parse(fs.readFileSync(DB)))}catch{}
 const save=()=>{fs.writeFileSync(DB+'.tmp',JSON.stringify(db));fs.renameSync(DB+'.tmp',DB)};save();
