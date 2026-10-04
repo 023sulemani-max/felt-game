@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Felt admin</title>
+<style>body{margin:0;background:#0a1424;color:#e8eef8;font:14px system-ui}main{max-width:1200px;margin:auto;padding:16px}h1{font-size:20px;margin:0 0 12px}
+input,button{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid #223653;background:#111f36;color:#e8eef8}button{cursor:pointer}button.on,.pri{background:#2f7df6;border-color:#2f7df6;color:#fff}
+nav{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap}.box{overflow-x:auto;background:#111f36;border:1px solid #223653;border-radius:10px}
+table{border-collapse:collapse;width:100%;white-space:nowrap}th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #223653}th{color:#8a9bb8;font-weight:600}
+.cards{display:flex;gap:10px;flex-wrap:wrap}.c{background:#111f36;border:1px solid #223653;border-radius:10px;padding:10px 16px}.c b{display:block;font-size:20px;color:#e0b44c}
+.pending{color:#e0b44c}.completed{color:#3fc58a}.rejected{color:#e5594a}#err{color:#e5594a}</style></head><body><main>
+<h1>Felt admin panel</h1>
+<div id="login"><input id="u" placeholder="Admin username"> <input id="p" type="password" placeholder="Password"> <button class="pri" onclick="go()">Log in</button><p id="err"></p></div>
+<div id="app" hidden><div class="cards" id="sum"></div><nav id="nav"></nav><div class="box" id="tb"></div></div>
+<script>
+let TK='',tab='users';const $=s=>document.querySelector(s),F=n=>(+n).toFixed(2),D=s=>s?new Date(s).toLocaleString():'';
+async function A(p,d){const r=await fetch(p,{method:d?'POST':'GET',headers:{'Content-Type':'application/json',Authorization:'Bearer '+TK},body:d?JSON.stringify(d):undefined});const j=await r.json();if(r.status==401){TK='';$('#app').hidden=true;$('#login').hidden=false}return j}
+async function go(){const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('#u').value,password:$('#p').value})}),j=await r.json();if(!r.ok){$('#err').textContent=j.error;return}TK=j.token;$('#login').hidden=true;$('#app').hidden=false;show('users')}
+function table(cols,rows){return'<table><tr>'+cols.map(c=>'<th>'+c[0]+'</th>').join('')+'</tr>'+rows.map(r=>'<tr>'+cols.map(c=>'<td>'+(c[1](r)??'')+'</td>').join('')+'</tr>').join('')+'</table>'}
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function act(id,a){await A('/api/admin/withdrawal',{id,action:a});show('withdrawals')}
+async function show(t){tab=t;$('#nav').innerHTML=[['users','Users'],['withdrawals','Withdrawals'],['tx','All transactions'],['plays','Game plays']].map(([k,n])=>'<button class="'+(k==t?'on':'')+'" onclick="show(\''+k+'\')">'+n+'</button>').join('');
+const us=(await A('/api/admin/users')).users||[],tx=(await A('/api/admin/tx')).tx||[],pending=tx.filter(x=>x.type=='withdraw'&&x.status=='pending');
+$('#sum').innerHTML=[['Users',us.length],['Total coins held',F(us.reduce((a,u)=>a+u.balance,0))],['Pending withdrawals',pending.length]].map(([a,b])=>'<div class="c">'+a+'<b>'+b+'</b></div>').join('');
+const st=x=>'<span class="'+x.status+'">'+x.status+'</span>';
+if(t=='users')$('#tb').innerHTML=table([['User',u=>esc(u.username)],['Balance',u=>F(u.balance)],['Deposited',u=>F(u.deposited)],['Withdrawn',u=>F(u.withdrawn)],['Pending',u=>F(u.pending)],['Wagered',u=>F(u.wagered)],['Won',u=>F(u.won)],['Plays',u=>u.plays],['Logins',u=>u.logins],['Joined',u=>D(u.created)],['Last seen',u=>D(u.last)],['IP',u=>esc(u.ip)],['Device',u=>esc(u.device)]],us);
+if(t=='withdrawals')$('#tb').innerHTML=table([['ID',x=>x.id],['User',x=>esc(x.u)],['Amount',x=>F(x.amount)],['Method',x=>x.method],['Time',x=>D(x.time)],['Status',st],['',x=>x.status=='pending'?'<button class="pri" onclick="act('+x.id+',\'approve\')">Approve</button> <button onclick="act('+x.id+',\'reject\')">Reject</button>':'']],tx.filter(x=>x.type=='withdraw'));
+if(t=='tx')$('#tb').innerHTML=table([['ID',x=>x.id],['User',x=>esc(x.u)],['Type',x=>x.type],['Amount',x=>F(x.amount)],['Method',x=>x.method],['Time',x=>D(x.time)],['Status',st]],tx);
+if(t=='plays')$('#tb').innerHTML=table([['User',x=>esc(x.u)],['Game',x=>x.game],['Bet',x=>F(x.bet)],['Payout',x=>F(x.payout)],['Result',x=>x.payout>x.bet?'win':x.payout<x.bet?'loss':'push'],['Time',x=>D(x.time)]],(await A('/api/admin/plays')).plays||[])}
+</script></main></body></html>
